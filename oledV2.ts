@@ -74,9 +74,9 @@ export = class Oled {
   private static readonly SET_VCOM_DETECT = 0xDB;
   private static readonly DISPLAY_ALL_ON_RESUME = 0xA4;
   private static readonly NORMAL_DISPLAY = 0xA6;
+  private static readonly INVERT_DISPLAY = 0xA7;
   private static readonly COLUMN_ADDR = 0x21;
   private static readonly PAGE_ADDR = 0x22;
-  private static readonly INVERT_DISPLAY = 0xA7;
   private static readonly ACTIVATE_SCROLL = 0x2F;
   private static readonly DEACTIVATE_SCROLL = 0x2E;
   private static readonly SET_VERTICAL_SCROLL_AREA = 0xA3;
@@ -152,7 +152,6 @@ export = class Oled {
 
     const screenSize = `${this.WIDTH}x${this.HEIGHT}`
     this.screenConfig = opts.screenConfig ? opts.screenConfig : config[this.ssdType][screenSize]
-    console.log("the screen config is", this.screenConfig)
     this._initialise()
   }
 
@@ -196,8 +195,6 @@ export = class Oled {
     } else {
       return
     }
-
-
 
     const bufferForSend = Buffer.from([control, val])
     const sentCount = this.wire.i2cWriteSync(this.ADDRESS, 2, bufferForSend);
@@ -411,7 +408,7 @@ export = class Oled {
         this._transfer(TransferType.Command, displaySeq[i])
       }
 
-      // write buffer data
+      //write buffer data
       // for (let i = 0; i < bufferLen; i += 1) {
       //   this._transfer(TransferType.Data, this.buffer[i])
       // }
@@ -457,6 +454,9 @@ export = class Oled {
   // clear all pixels currently on the display
   public clearDisplay(sync?: boolean): void {
     const immed = (typeof sync === 'undefined') ? true : sync
+
+    this.update()
+
     // write off pixels
     for (let i = 0; i < this.buffer.length; i += 1) {
       if (this.buffer[i] !== 0x00) {
@@ -466,6 +466,7 @@ export = class Oled {
         }
       }
     }
+
 
     if (immed) {
       this._updateDirtyBytes(this.dirtyBytes)
@@ -538,14 +539,15 @@ export = class Oled {
   private _updateDirtyBytes(byteArray: number[]): void {
     const blen = byteArray.length
 
-    // check to see if this will even save time
-    if (blen > (this.buffer.length / 7)) {
-      // just call regular update at this stage, saves on bytes sent
-      this.update();
-      // now that all bytes are synced, reset dirty state
-      this.dirtyBytes = [];
-      return
-    }
+
+    // // check to see if this will even save time
+    // if (blen > (this.buffer.length / 7)) {
+    //   // just call regular update at this stage, saves on bytes sent
+    //   this.update();
+    //   // now that all bytes are synced, reset dirty state
+    //   this.dirtyBytes = [];
+    //   return
+    // }
 
     this._waitUntilReady(() => {
       let pageStart = Infinity
@@ -558,10 +560,10 @@ export = class Oled {
       for (let i = 0; i < blen; i += 1) {
         const b = byteArray[i]
         if ((b >= 0) && (b < this.buffer.length)) {
-          const page = b / this.WIDTH | 0
+          const page = b / this.screenConfig.coloffset + this.WIDTH - 1 | 0
           if (page < pageStart) pageStart = page
           if (page > pageEnd) pageEnd = page
-          const col = b % this.WIDTH
+          const col = b % this.screenConfig.coloffset + this.WIDTH - 1
           if (col < colStart) colStart = col
           if (col > colEnd) colEnd = col
           any = true
@@ -570,10 +572,21 @@ export = class Oled {
 
       if (!any) return
 
+      colStart += this.screenConfig.coloffset
+      colEnd += this.screenConfig.coloffset
+
       const displaySeq = [
         Oled.COLUMN_ADDR, colStart, colEnd, // column start and end address
         Oled.PAGE_ADDR, pageStart, pageEnd // page start and end address
       ]
+
+      // const displaySeq = [
+      //   Oled.COLUMN_ADDR,
+      //   this.screenConfig.coloffset,
+      //   this.screenConfig.coloffset + this.WIDTH - 1, // column start and end address
+      //   Oled.PAGE_ADDR, 0, (this.HEIGHT / 8) - 1 // page start and end address
+      // ]
+
 
       const displaySeqLen = displaySeq.length
 
@@ -593,8 +606,6 @@ export = class Oled {
     // now that all bytes are synced, reset dirty state
     this.dirtyBytes = []
   }
-
-
 
   // using Bresenham's line algorithm
   public drawLine(x0: number, y0: number, x1: number, y1: number, color: Color, sync?: boolean): void {

@@ -64,7 +64,6 @@ module.exports = (_a = class Oled {
             this.wire = i2c;
             const screenSize = `${this.WIDTH}x${this.HEIGHT}`;
             this.screenConfig = opts.screenConfig ? opts.screenConfig : config[this.ssdType][screenSize];
-            console.log("the screen config is", this.screenConfig);
             this._initialise();
         }
         set textCursor(position) {
@@ -246,6 +245,7 @@ module.exports = (_a = class Oled {
         }
         clearDisplay(sync) {
             const immed = (typeof sync === 'undefined') ? true : sync;
+            this.update();
             for (let i = 0; i < this.buffer.length; i += 1) {
                 if (this.buffer[i] !== 0x00) {
                     this.buffer[i] = 0x00;
@@ -297,11 +297,6 @@ module.exports = (_a = class Oled {
         }
         _updateDirtyBytes(byteArray) {
             const blen = byteArray.length;
-            if (blen > (this.buffer.length / 7)) {
-                this.update();
-                this.dirtyBytes = [];
-                return;
-            }
             this._waitUntilReady(() => {
                 let pageStart = Infinity;
                 let pageEnd = 0;
@@ -311,12 +306,12 @@ module.exports = (_a = class Oled {
                 for (let i = 0; i < blen; i += 1) {
                     const b = byteArray[i];
                     if ((b >= 0) && (b < this.buffer.length)) {
-                        const page = b / this.WIDTH | 0;
+                        const page = b / this.screenConfig.coloffset + this.WIDTH - 1 | 0;
                         if (page < pageStart)
                             pageStart = page;
                         if (page > pageEnd)
                             pageEnd = page;
-                        const col = b % this.WIDTH;
+                        const col = b % this.screenConfig.coloffset + this.WIDTH - 1;
                         if (col < colStart)
                             colStart = col;
                         if (col > colEnd)
@@ -326,6 +321,8 @@ module.exports = (_a = class Oled {
                 }
                 if (!any)
                     return;
+                colStart += this.screenConfig.coloffset;
+                colEnd += this.screenConfig.coloffset;
                 const displaySeq = [
                     Oled.COLUMN_ADDR, colStart, colEnd,
                     Oled.PAGE_ADDR, pageStart, pageEnd
@@ -468,9 +465,9 @@ module.exports = (_a = class Oled {
     _a.SET_VCOM_DETECT = 0xDB,
     _a.DISPLAY_ALL_ON_RESUME = 0xA4,
     _a.NORMAL_DISPLAY = 0xA6,
+    _a.INVERT_DISPLAY = 0xA7,
     _a.COLUMN_ADDR = 0x21,
     _a.PAGE_ADDR = 0x22,
-    _a.INVERT_DISPLAY = 0xA7,
     _a.ACTIVATE_SCROLL = 0x2F,
     _a.DEACTIVATE_SCROLL = 0x2E,
     _a.SET_VERTICAL_SCROLL_AREA = 0xA3,
