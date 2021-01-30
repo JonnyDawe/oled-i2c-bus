@@ -4,7 +4,8 @@
   "description": "NodeJS module for controlling oled devices on the Raspbery Pi (including the SSD1306 OLED screens)",
   "main": "oled.js",
   "devDependencies": {
-    "i2c-bus": "^4.0.1",
+    "i2c-bus": "^5.0.1",
+    "@types/node": "^14.14.22",
     "oled-font-5x7": "~1.0.0",
     "png-to-lcd": "~1.0.2",
     "pngjs": "^3.3.3",
@@ -26,7 +27,11 @@
     "SSD1306",
     "128x64"
   ],
-  "author": ["Judd Flamm", "Suz Hinton", "Bogdan Symchych"],
+  "author": [
+    "Judd Flamm",
+    "Suz Hinton",
+    "Bogdan Symchych"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/kd7yva/oled-i2c-bus/issues"
