@@ -40,7 +40,7 @@ type Pixel = [number, number, Color]
 enum TransferType { Command, Data }
 
 
-export = class Oled {
+export class Oled {
 
 
   //OLED Config
@@ -215,8 +215,6 @@ export = class Oled {
     callback(buff[0])
   }
 
-
-  //rewrite as function!!!!!!!!!!!!!!!!!!!!
   // sometimes the oled gets a bit busy with lots of bytes.
   // Read the response byte to see if this is the case
   private _waitUntilReady = (callback: () => void) => {
@@ -539,15 +537,14 @@ export = class Oled {
   private _updateDirtyBytes(byteArray: number[]): void {
     const blen = byteArray.length
 
-
-    // // check to see if this will even save time
-    // if (blen > (this.buffer.length / 7)) {
-    //   // just call regular update at this stage, saves on bytes sent
-    //   this.update();
-    //   // now that all bytes are synced, reset dirty state
-    //   this.dirtyBytes = [];
-    //   return
-    // }
+    // check to see if this will even save time
+    if (blen > (this.buffer.length / 7)) {
+      // just call regular update at this stage, saves on bytes sent
+      this.update();
+      // now that all bytes are synced, reset dirty state
+      this.dirtyBytes = [];
+      return
+    }
 
     this._waitUntilReady(() => {
       let pageStart = Infinity
@@ -579,14 +576,6 @@ export = class Oled {
         Oled.COLUMN_ADDR, colStart, colEnd, // column start and end address
         Oled.PAGE_ADDR, pageStart, pageEnd // page start and end address
       ]
-
-      // const displaySeq = [
-      //   Oled.COLUMN_ADDR,
-      //   this.screenConfig.coloffset,
-      //   this.screenConfig.coloffset + this.WIDTH - 1, // column start and end address
-      //   Oled.PAGE_ADDR, 0, (this.HEIGHT / 8) - 1 // page start and end address
-      // ]
-
 
       const displaySeqLen = displaySeq.length
 
@@ -719,6 +708,8 @@ export = class Oled {
     }
   };
 
+
+
   // activate scrolling for rows start through stop
   public startScroll(dir: Direction, start: number, stop: number): void {
     const cmdSeq: number[] = []
@@ -761,11 +752,14 @@ export = class Oled {
     this._waitUntilReady(() => {
       if (dir === 'right' || dir === 'left') {
         cmdSeq.push(
-          0x00, start,
-          0x00, stop,
-          0x00, 0xFF,
-          Oled.ACTIVATE_SCROLL
-        )
+          0x001b, start,
+          0x011B, stop)
+
+        if (this.ssdType === "ssd1306") {
+          cmdSeq.push(0x00, 0xFF)
+        }
+
+        cmdSeq.push(Oled.ACTIVATE_SCROLL)
       }
 
       for (let i = 0; i < cmdSeq.length; i += 1) {
@@ -778,17 +772,5 @@ export = class Oled {
   public stopScroll() {
     this._transfer(TransferType.Command, Oled.DEACTIVATE_SCROLL) // stahp
   }
-
-
-
-
-
-
-
-
-
-
-
-
 
 }
